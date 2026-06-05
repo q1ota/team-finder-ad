@@ -1,14 +1,16 @@
-import re
 from django import forms
 from django.contrib.auth import authenticate
 from django.contrib.auth.forms import PasswordChangeForm
 
+from .constants import NAME_MAX_LENGTH
+from .mixins import GitHubUrlMixin
 from .models import User
+from .service import normalize_phone
 
 
 class RegisterForm(forms.Form):
-    name = forms.CharField(max_length=124, label='Имя')
-    surname = forms.CharField(max_length=124, label='Фамилия')
+    name = forms.CharField(max_length=NAME_MAX_LENGTH, label='Имя')
+    surname = forms.CharField(max_length=NAME_MAX_LENGTH, label='Фамилия')
     email = forms.EmailField(label='Email')
     password = forms.CharField(widget=forms.PasswordInput, label='Пароль')
 
@@ -35,16 +37,7 @@ class LoginForm(forms.Form):
         return cleaned
 
 
-def _normalize_phone(phone):
-    phone = phone.strip()
-    if re.fullmatch(r'8\d{10}', phone):
-        return '+7' + phone[1:]
-    if re.fullmatch(r'\+7\d{10}', phone):
-        return phone
-    return None
-
-
-class EditProfileForm(forms.ModelForm):
+class EditProfileForm(GitHubUrlMixin, forms.ModelForm):
     class Meta:
         model = User
         fields = ['name', 'surname', 'avatar', 'about', 'phone', 'github_url']
@@ -64,7 +57,7 @@ class EditProfileForm(forms.ModelForm):
         phone = self.cleaned_data.get('phone', '').strip()
         if not phone:
             return None
-        normalized = _normalize_phone(phone)
+        normalized = normalize_phone(phone)
         if normalized is None:
             raise forms.ValidationError(
                 'Введите номер в формате 8XXXXXXXXXX или +7XXXXXXXXXX.'
@@ -75,12 +68,6 @@ class EditProfileForm(forms.ModelForm):
         if qs.exists():
             raise forms.ValidationError('Этот номер телефона уже занят.')
         return normalized
-
-    def clean_github_url(self):
-        url = self.cleaned_data.get('github_url', '').strip()
-        if url and 'github.com' not in url:
-            raise forms.ValidationError('Ссылка должна вести на GitHub.')
-        return url
 
 
 class CustomPasswordChangeForm(PasswordChangeForm):

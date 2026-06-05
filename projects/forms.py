@@ -1,9 +1,11 @@
 from django import forms
 
+from users.mixins import GitHubUrlMixin
+
 from .models import Project
 
 
-class ProjectForm(forms.ModelForm):
+class ProjectForm(GitHubUrlMixin, forms.ModelForm):
     class Meta:
         model = Project
         fields = ['name', 'description', 'github_url', 'status']
@@ -17,9 +19,3 @@ class ProjectForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 5}),
             'status': forms.Select(),
         }
-
-    def clean_github_url(self):
-        url = self.cleaned_data.get('github_url', '').strip()
-        if url and 'github.com' not in url:
-            raise forms.ValidationError('Ссылка должна вести на GitHub.')
-        return url
